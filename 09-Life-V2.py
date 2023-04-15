@@ -5,7 +5,6 @@ import math
 import time
 
 
-
 class Field():
     def __init__(self, field_w: int, field_h: int, grid_width: int, point_w: int, point_h: int, display) -> None:
         self.field_w = field_w
@@ -15,36 +14,32 @@ class Field():
         self.point_h = point_h
         self.display = display
         self.play_field = []
-        self.status_field=[]
         for a in range(field_h+2):
             self.play_field.append([])
-            self.status_field.append([])
             for b in range(field_w+2):
-                self.play_field[a].append(Point(b, a, self.play_field, self.status_field))
-                self.status_field[a].append(False)
+                self.play_field[a].append(
+                    Point(b, a, self.play_field))
 
     def look_next_step(self):
         for a in range(1, self.field_h):
             for b in range(1, self.field_w):
-                self.play_field[a][b].check_future()
+                if self.play_field[a][b].status_need_to_check:
+                    # print(b,a)
+                    self.play_field[a][b].check_future()
 
-    def change_point_status(self,field_x,field_y):
-        x=math.trunc(field_x/self.point_w)
-        y=math.trunc(field_y/self.point_h)
-        print("Меняем кв: ",x,y)
+    def change_point_status(self, field_x, field_y):
+        x = math.trunc(field_x/self.point_w)
+        y = math.trunc(field_y/self.point_h)
+        print("Меняем кв: ", x, y)
         if self.play_field[y][x].status:
             self.play_field[y][x].set_status(False)
-            self.status_field[y][x]=False
         else:
             self.play_field[y][x].set_status(True)
-            self.status_field[y][x]=True
 
     def set_rnd_status(self):
         for a in range(1, self.field_h):
             for b in range(1, self.field_w):
-                # self.status_field[a][b]=randint(0,1)
-                self.play_field[a][b].set_status(bool(randint(0,1)))
-
+                self.play_field[a][b].set_status(bool(randint(0, 1)))
 
     def change_field_status(self):
         for a in range(1, self.field_h):
@@ -57,37 +52,34 @@ class Field():
         for a in range(1, self.field_h):
             for b in range(1, self.field_w):
                 if self.play_field[a][b].status and self.play_field[a][b].need_to_draw:
-                    pygame.draw.rect(self.display, (100, 100, 100), (b*self.point_w, a*self.point_h, self.point_w, self.point_h))
+                    pygame.draw.rect(self.display, (100, 100, 100),
+                                     (b*self.point_w, a*self.point_h, self.point_w, self.point_h))
                 if not self.play_field[a][b].status and self.play_field[a][b].need_to_draw:
-                    pygame.draw.rect(self.display, (255, 255, 255), (b*self.point_w, a*self.point_h, self.point_w, self.point_h))
+                    pygame.draw.rect(self.display, (255, 255, 255),
+                                     (b*self.point_w, a*self.point_h, self.point_w, self.point_h))
 
 
 class Point():
-    def __init__(self, x, y, play_field, status_field) -> None:
+    def __init__(self, x, y, play_field) -> None:
         self.x = x
         self.y = y
         self.play_field = play_field
-        self.status_field=status_field
         self.status = False
         self.future_status = False
+        self.status_need_to_check = False
+        self.future_status_need_to_check = False
+        self.neighbours = 0
         self.need_to_draw = True
 
     def check_future(self):
         neighbours = 0
-        vrem_objeckt_status=[]
-        vrem_fild_status=[]
+        # self.future_status_need_to_check = False
+
         for a in range(self.y-1, self.y+2):
-            #1vrem_objeckt_status.append([])
-            #1vrem_fild_status.append([])
             for b in range(self.x-1, self.x+2):
-                #1 vrem_objeckt_status[a].append(self.play_field[a][b].status)
-                #1 vrem_fild_status[a].append(self.status_field[a][b])
-                #1 if self.status_field[a][b] != self.play_field[a][b].status:
-                #1     print(self.status_field[a][b], self.play_field[a][b].status )
-                neighbours += self.status_field[a][b]
-                #1 neighbours += self.play_field[a][b].status
-                
-        neighbours -= self.status
+                if not (a == self.y and b == self.x):
+                    neighbours += self.play_field[a][b].status
+
         if self.status and neighbours in [2, 3]:
             self.future_status = True
         elif self.status and not neighbours in [2, 3]:
@@ -96,41 +88,57 @@ class Point():
             self.future_status = True
         else:
             self.future_status = False
+
+        if self.future_status != self.status:
+            self.tell_the_neighbors_to_check_themselv('future')
         return self.future_status
 
     def change_status(self):
         self.need_to_draw = True if self.status != self.future_status else False
         self.status = self.future_status
-        self.status_field[self.y][self.x]=self.future_status
+        self.status_need_to_check = self.future_status_need_to_check
+        self.future_status_need_to_check=False
 
     def set_status(self, status):
-        self.status=status
-        self.status_field[self.y][self.x]=status
+        if self.status != status:
+            self.status = status
+            self.tell_the_neighbors_to_check_themselv('now')
+            self.status_need_to_check=True
 
-w=500
-h=500
-time_s=0
-time_f=0
-duration_look_next_step=0
-duration_change_field_status=0
-duration_draw_field=0
-duration_update_screen=0
+    def tell_the_neighbors_to_check_themselv(self, when):
+        for a in range(self.y-1, self.y+2):
+            for b in range(self.x-1, self.x+2):
+                if not (a == self.y and b == self.x):
+                    if when == 'now':
+                        self.play_field[a][b].status_need_to_check = True
+                    elif when == 'future':
+                        self.play_field[a][b].future_status_need_to_check = True
+
+
+w = 500
+h = 500
+time_s = 0
+time_f = 0
+duration_look_next_step = 0
+duration_change_field_status = 0
+duration_draw_field = 0
+duration_update_screen = 0
 pygame.init()
 display = pygame.display.set_mode((w+8, h+8))
 game_field = Field(w, h, 1, 4, 4, display)
 game_field.set_rnd_status()
 display.fill((255, 255, 255))
 game_field.draw_field()
-start_game=False
+start_game = False
 i=0
 while True:
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONDOWN:
-            x,y=event.pos
-            if x<20 and y<20:
-                start_game=True
+            x, y = event.pos
+            if x < 20 and y < 20:
+                start_game = True
                 time_s=time.time()
-            game_field.change_point_status(x,y)
+            game_field.change_point_status(x, y)
             game_field.draw_field()
             print("MOUSEBUTTONDOWN:")
             print(event.pos)
