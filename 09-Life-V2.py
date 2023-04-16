@@ -115,8 +115,8 @@ class Point():
                         self.play_field[a][b].future_status_need_to_check = True
 
 
-w = 500
-h = 500
+w = 1000
+h = 1000
 time_s = 0
 time_f = 0
 duration_look_next_step = 0
@@ -125,8 +125,9 @@ duration_draw_field = 0
 duration_update_screen = 0
 pygame.init()
 display = pygame.display.set_mode((w+8, h+8))
-game_field = Field(w, h, 1, 4, 4, display)
+game_field = Field(w, h, 1, 1, 1, display)
 game_field.set_rnd_status()
+# with open("fi")
 display.fill((255, 255, 255))
 game_field.draw_field()
 start_game = False
